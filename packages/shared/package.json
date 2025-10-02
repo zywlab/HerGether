@@ -1,0 +1,14 @@
+{
+  "name": "@base44/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./api": "./api/index.js",
+    "./utils": "./utils/index.js"
+  },
+  "dependencies": {
+    "@base44/sdk": "^0.1.2"
+  }
+}

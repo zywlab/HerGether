@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>她聚 - 管理后台</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.12.8/dist/reset.css">
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/antd@5.12.8/dist/antd.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .admin-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .admin-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .admin-header .subtitle {
+            margin: 4px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+        .pending { color: #fa8c16; }
+        .approved { color: #52c41a; }
+        .rejected { color: #f5222d; }
+        .total { color: #1890ff; }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <h1>🚨 她聚管理后台</h1>
+        <p class="subtitle">性别验证申诉处理系统</p>
+    </div>
+
+    <div class="admin-container">
+        <!-- 快速统计 -->
+        <div class="quick-stats">
+            <div class="stat-card">
+                <div class="stat-number pending" id="pending-count">-</div>
+                <div class="stat-label">待处理申诉</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number approved" id="approved-count">-</div>
+                <div class="stat-label">已批准</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number rejected" id="rejected-count">-</div>
+                <div class="stat-label">已拒绝</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number total" id="total-count">-</div>
+                <div class="stat-label">总申诉数</div>
+            </div>
+        </div>
+
+        <!-- 申诉管理组件 -->
+        <div id="appeals-container"></div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { Card, Table, Button, Space, Tag, message, Modal, Descriptions, Image } = antd;
+        const { CheckOutlined, CloseOutlined } = antd;
+
+        // 简化的申诉管理组件
+        function SimpleAppealsManager() {
+            const [appeals, setAppeals] = useState([]);
+            const [loading, setLoading] = useState(false);
+            const [selectedAppeal, setSelectedAppeal] = useState(null);
+            const [processing, setProcessing] = useState(false);
+
+            useEffect(() => {
+                loadAppeals();
+                const interval = setInterval(loadAppeals, 30000); // 30秒刷新
+                return () => clearInterval(interval);
+            }, []);
+
+            const loadAppeals = async () => {
+                setLoading(true);
+                try {
+                    // 模拟数据，实际项目中替换为真实API
+                    const mockAppeals = [
+                        {
+                            ticketId: 'APPEAL-2024-001',
+                            userNickname: '小美',
+                            aiDetectedGender: 'male',
+                            reason: 'AI人脸性别识别错误，请人工审核确认',
+                            contactInfo: 'xiaomei123',
+                            submitTime: Date.now() - 3600000,
+                            status: 'pending'
+                        },
+                        {
+                            ticketId: 'APPEAL-2024-002',
+                            userNickname: '丽丽',
+                            aiDetectedGender: 'male',
+                            reason: 'AI人脸性别识别错误，请人工审核确认',
+                            contactInfo: 'lili456',
+                            submitTime: Date.now() - 7200000,
+                            status: 'approved',
+                            processTime: Date.now() - 1800000,
+                            newGender: 'female'
+                        }
+                    ];
+                    
+                    setAppeals(mockAppeals);
+                    updateStats(mockAppeals);
+                } catch (error) {
+                    message.error('加载申诉列表失败');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const updateStats = (appealsList) => {
+                const pending = appealsList.filter(a => a.status === 'pending').length;
+                const approved = appealsList.filter(a => a.status === 'approved').length;
+                const rejected = appealsList.filter(a => a.status === 'rejected').length;
+                const total = appealsList.length;
+
+                document.getElementById('pending-count').textContent = pending;
+                document.getElementById('approved-count').textContent = approved;
+                document.getElementById('rejected-count').textContent = rejected;
+                document.getElementById('total-count').textContent = total;
+            };
+
+            const handleQuickProcess = async (appeal, action) => {
+                setProcessing(true);
+                try {
+                    // 模拟API调用
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    const newGender = appeal.aiDetectedGender === 'female' ? 'male' : 'female';
+                    const updatedAppeal = {
+                        ...appeal,
+                        status: action,
+                        processTime: Date.now(),
+                        newGender: action === 'approve' ? newGender : null
+                    };
+
+                    setAppeals(prev => prev.map(a => 
+                        a.ticketId === appeal.ticketId ? updatedAppeal : a
+                    ));
+
+                    if (action === 'approve') {
+                        message.success(`申诉已批准，用户性别已修改为${newGender === 'female' ? '女性' : '男性'}`);
+                    } else {
+                        message.success('申诉已拒绝');
+                    }
+                    
+                    setSelectedAppeal(null);
+                } catch (error) {
+                    message.error('处理失败');
+                } finally {
+                    setProcessing(false);
+                }
+            };
+
+            const columns = [
+                {
+                    title: '工单号',
+                    dataIndex: 'ticketId',
+                    key: 'ticketId',
+                    render: (text) => (
+                        <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                            {text}
+                        </span>
+                    )
+                },
+                {
+                    title: '用户信息',
+                    key: 'userInfo',
+                    render: (_, record) => (
+                        <div>
+                            <div style={{ fontWeight: 'bold' }}>{record.userNickname}</div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                                AI识别: {record.aiDetectedGender === 'female' ? '女性' : '男性'}
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    title: '申诉原因',
+                    dataIndex: 'reason',
+                    key: 'reason',
+                    ellipsis: true
+                },
+                {
+                    title: '联系方式',
+                    dataIndex: 'contactInfo',
+                    key: 'contactInfo'
+                },
+                {
+                    title: '提交时间',
+                    dataIndex: 'submitTime',
+                    key: 'submitTime',
+                    render: (time) => new Date(time).toLocaleString()
+                },
+                {
+                    title: '状态',
+                    dataIndex: 'status',
+                    key: 'status',
+                    render: (status) => {
+                        const colors = {
+                            pending: 'processing',
+                            approved: 'success',
+                            rejected: 'error'
+                        };
+                        const texts = {
+                            pending: '待处理',
+                            approved: '已批准',
+                            rejected: '已拒绝'
+                        };
+                        return <Tag color={colors[status]}>{texts[status]}</Tag>;
+                    }
+                },
+                {
+                    title: '操作',
+                    key: 'actions',
+                    render: (_, record) => (
+                        <Space>
+                            <Button size="small" onClick={() => setSelectedAppeal(record)}>
+                                查看详情
+                            </Button>
+                            {record.status === 'pending' && (
+                                <>
+                                    <Button 
+                                        type="primary" 
+                                        size="small"
+                                        onClick={() => handleQuickProcess(record, 'approve')}
+                                        loading={processing}
+                                    >
+                                        批准 (改为{record.aiDetectedGender === 'female' ? '男性' : '女性'})
+                                    </Button>
+                                    <Button 
+                                        danger 
+                                        size="small"
+                                        onClick={() => handleQuickProcess(record, 'reject')}
+                                        loading={processing}
+                                    >
+                                        拒绝
+                                    </Button>
+                                </>
+                            )}
+                        </Space>
+                    )
+                }
+            ];
+
+            return (
+                <div>
+                    <Card title="申诉处理列表">
+                        <Table
+                            columns={columns}
+                            dataSource={appeals}
+                            loading={loading}
+                            rowKey="ticketId"
+                            pagination={{ pageSize: 10 }}
+                        />
+                    </Card>
+
+                    <Modal
+                        title={`申诉详情 - ${selectedAppeal?.ticketId}`}
+                        open={!!selectedAppeal}
+                        onCancel={() => setSelectedAppeal(null)}
+                        footer={
+                            selectedAppeal?.status === 'pending' ? (
+                                <Space>
+                                    <Button onClick={() => setSelectedAppeal(null)}>关闭</Button>
+                                    <Button 
+                                        danger
+                                        onClick={() => handleQuickProcess(selectedAppeal, 'reject')}
+                                        loading={processing}
+                                    >
+                                        拒绝申诉
+                                    </Button>
+                                    <Button 
+                                        type="primary"
+                                        onClick={() => handleQuickProcess(selectedAppeal, 'approve')}
+                                        loading={processing}
+                                    >
+                                        批准申诉
+                                    </Button>
+                                </Space>
+                            ) : (
+                                <Button onClick={() => setSelectedAppeal(null)}>关闭</Button>
+                            )
+                        }
+                    >
+                        {selectedAppeal && (
+                            <Descriptions column={2} bordered>
+                                <Descriptions.Item label="工单号">{selectedAppeal.ticketId}</Descriptions.Item>
+                                <Descriptions.Item label="用户昵称">{selectedAppeal.userNickname}</Descriptions.Item>
+                                <Descriptions.Item label="AI识别性别">
+                                    {selectedAppeal.aiDetectedGender === 'female' ? '女性' : '男性'}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="申诉状态">
+                                    <Tag color={selectedAppeal.status === 'pending' ? 'processing' : 
+                                               selectedAppeal.status === 'approved' ? 'success' : 'error'}>
+                                        {selectedAppeal.status === 'pending' ? '待处理' :
+                                         selectedAppeal.status === 'approved' ? '已批准' : '已拒绝'}
+                                    </Tag>
+                                </Descriptions.Item>
+                                <Descriptions.Item label="提交时间">
+                                    {new Date(selectedAppeal.submitTime).toLocaleString()}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="联系方式">
+                                    {selectedAppeal.contactInfo}
+                                </Descriptions.Item>
+                                <Descriptions.Item label="申诉原因" span={2}>
+                                    {selectedAppeal.reason}
+                                </Descriptions.Item>
+                            </Descriptions>
+                        )}
+                    </Modal>
+                </div>
+            );
+        }
+
+        // 渲染应用
+        ReactDOM.render(<SimpleAppealsManager />, document.getElementById('appeals-container'));
+    </script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>

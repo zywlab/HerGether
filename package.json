@@ -1,13 +1,23 @@
 {
-  "name": "base44-app",
+  "name": "base44-monorepo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "npm run dev --workspace=@base44/web",
+    "dev:web": "npm run dev --workspace=@base44/web",
+    "dev:miniapp": "npm run dev:weapp --workspace=@base44/miniapp",
+    "dev:miniapp:prod": "npm run dev:weapp:prod --workspace=@base44/miniapp",
+    "build": "npm run build --workspace=@base44/web",
+    "build:web": "npm run build --workspace=@base44/web",
+    "build:miniapp": "npm run build:weapp --workspace=@base44/miniapp",
+    "build:miniapp:prod": "npm run build:weapp:prod --workspace=@base44/miniapp",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "npm run preview --workspace=@base44/web"
   },
   "dependencies": {
     "@base44/sdk": "^0.1.2",
